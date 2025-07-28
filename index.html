@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍄 لعبة ماريو المشوقة - العب الآن مجاناً!</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #87CEEB, #98FB98);
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #gameCanvas {
+            border: 3px solid #8B4513;
+            border-radius: 10px;
+            background: #87CEEB;
+            display: block;
+            margin: 20px auto;
+        }
+        .controls {
+            margin: 20px;
+        }
+        .btn {
+            background: #FF6B6B;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 25px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn:hover {
+            background: #FF5252;
+            transform: scale(1.05);
+        }
+        .mobile-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px;
+        }
+        .mobile-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 20px;
+            border-radius: 50%;
+            font-size: 20px;
+            width: 60px;
+            height: 60px;
+            cursor: pointer;
+        }
+        .score {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2E7D32;
+            margin: 10px;
+        }
+        .ad-banner {
+            background: #FFF3E0;
+            border: 2px solid #FF9800;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 600px;
+            color: #E65100;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🍄 لعبة ماريو المشوقة - العب الآن مجاناً!</h1>
+    
+    <div class="score">
+        النقاط: <span id="score">0</span> | الأرواح: <span id="lives">3</span> | المرحلة: <span id="level">1</span>
+    </div>
+    
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    
+    <div class="controls">
+        <button class="btn" onclick="startGame()">ابدأ اللعب الآن! 🎮</button>
+        <button class="btn" onclick="resetGame()">إعادة البدء 🔄</button>
+    </div>
+    
+    <div class="mobile-controls">
+        <button class="mobile-btn" onmousedown="moveLeft()" onmouseup="stopMove()">←</button>
+        <button class="mobile-btn" onmousedown="jump()" onmouseup="stopJump()">↑</button>
+        <button class="mobile-btn" onmousedown="moveRight()" onmouseup="stopMove()">→</button>
+    </div>
+    
+    <div class="ad-banner">
+        🎯 إعلان: استمتع بأفضل الألعاب المجانية! اشترك في قناتنا للمزيد من الألعاب المشوقة!
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let gameRunning = false;
+        let score = 0;
+        let lives = 3;
+        let level = 1;
+        
+        // Mario character
+        let mario = {
+            x: 50,
+            y: 300,
+            width: 40,
+            height: 40,
+            velocityX: 0,
+            velocityY: 0,
+            jumping: false,
+            color: '#FF0000'
+        };
+        
+        // Game objects
+        let platforms = [
+            {x: 0, y: 350, width: 800, height: 50, color: '#8B4513'},
+            {x: 200, y: 280, width: 100, height: 20, color: '#228B22'},
+            {x: 400, y: 200, width: 100, height: 20, color: '#228B22'},
+            {x: 600, y: 120, width: 100, height: 20, color: '#228B22'}
+        ];
+        
+        let coins = [
+            {x: 230, y: 250, collected: false},
+            {x: 430, y: 170, collected: false},
+            {x: 630, y: 90, collected: false}
+        ];
+        
+        let enemies = [
+            {x: 300, y: 320, width: 30, height: 30, direction: 1, color: '#8B0000'},
+            {x: 500, y: 320, width: 30, height: 30, direction: -1, color: '#8B0000'}
+        ];
+        
+        function startGame() {
+            gameRunning = true;
+            gameLoop();
+        }
+        
+        function resetGame() {
+            mario.x = 50;
+            mario.y = 300;
+            mario.velocityX = 0;
+            mario.velocityY = 0;
+            score = 0;
+            lives = 3;
+            level = 1;
+            coins.forEach(coin => coin.collected = false);
+            updateUI();
+        }
+        
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('lives').textContent = lives;
+            document.getElementById('level').textContent = level;
+        }
+        
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function update() {
+            // Mario physics
+            mario.x += mario.velocityX;
+            mario.y += mario.velocityY;
+            
+            // Gravity
+            mario.velocityY += 0.8;
+            
+            // Platform collision
+            platforms.forEach(platform => {
+                if (mario.x < platform.x + platform.width &&
+                    mario.x + mario.width > platform.x &&
+                    mario.y < platform.y + platform.height &&
+                    mario.y + mario.height > platform.y) {
+                    
+                    if (mario.velocityY > 0) {
+                        mario.y = platform.y - mario.height;
+                        mario.velocityY = 0;
+                        mario.jumping = false;
+                    }
+                }
+            });
+            
+            // Coin collection
+            coins.forEach(coin => {
+                if (!coin.collected &&
+                    mario.x < coin.x + 20 &&
+                    mario.x + mario.width > coin.x &&
+                    mario.y < coin.y + 20 &&
+                    mario.y + mario.height > coin.y) {
+                    
+                    coin.collected = true;
+                    score += 100;
+                    updateUI();
+                }
+            });
+            
+            // Enemy movement and collision
+            enemies.forEach(enemy => {
+                enemy.x += enemy.direction * 2;
+                
+                if (enemy.x <= 0 || enemy.x >= canvas.width - enemy.width) {
+                    enemy.direction *= -1;
+                }
+                
+                // Enemy collision with Mario
+                if (mario.x < enemy.x + enemy.width &&
+                    mario.x + mario.width > enemy.x &&
+                    mario.y < enemy.y + enemy.height &&
+                    mario.y + mario.height > enemy.y) {
+                    
+                    if (mario.velocityY > 0) {
+                        // Mario jumped on enemy
+                        score += 200;
+                        enemy.x = -100; // Remove enemy
+                    } else {
+                        // Mario hit enemy
+                        lives--;
+                        mario.x = 50;
+                        mario.y = 300;
+                        updateUI();
+                        
+                        if (lives <= 0) {
+                            alert('انتهت اللعبة! النقاط النهائية: ' + score);
+                            showAd();
+                            resetGame();
+                        }
+                    }
+                }
+            });
+            
+            // Boundaries
+            if (mario.x < 0) mario.x = 0;
+            if (mario.x > canvas.width - mario.width) mario.x = canvas.width - mario.width;
+            
+            // Win condition
+            if (mario.x > canvas.width - 100 && mario.y < 100) {
+                level++;
+                score += 500;
+                alert('أحسنت! انتقلت للمرحلة التالية!');
+                showAd();
+                nextLevel();
+            }
+        }
+        
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw platforms
+            platforms.forEach(platform => {
+                ctx.fillStyle = platform.color;
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+            });
+            
+            // Draw coins
+            coins.forEach(coin => {
+                if (!coin.collected) {
+                    ctx.fillStyle = '#FFD700';
+                    ctx.beginPath();
+                    ctx.arc(coin.x + 10, coin.y + 10, 10, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+            
+            // Draw enemies
+            enemies.forEach(enemy => {
+                if (enemy.x > -50) {
+                    ctx.fillStyle = enemy.color;
+                    ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+                }
+            });
+            
+            // Draw Mario
+            ctx.fillStyle = mario.color;
+            ctx.fillRect(mario.x, mario.y, mario.width, mario.height);
+            
+            // Draw simple face on Mario
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(mario.x + 5, mario.y + 5, 8, 8);
+            ctx.fillRect(mario.x + 27, mario.y + 5, 8, 8);
+        }
+        
+        function showAd() {
+            setTimeout(() => {
+                alert('🎯 إعلان قصير: شكراً لك على اللعب! شارك اللعبة مع أصدقائك!');
+            }, 1000);
+        }
+        
+        function nextLevel() {
+            // Add more enemies and coins for next level
+            enemies.push({
+                x: Math.random() * 600 + 100,
+                y: 320,
+                width: 30,
+                height: 30,
+                direction: Math.random() > 0.5 ? 1 : -1,
+                color: '#8B0000'
+            });
+            
+            coins.push({
+                x: Math.random() * 600 + 100,
+                y: Math.random() * 200 + 100,
+                collected: false
+            });
+            
+            mario.x = 50;
+            mario.y = 300;
+            updateUI();
+        }
+        
+        // Controls
+        let keys = {};
+        
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            
+            if (e.key === ' ' || e.key === 'ArrowUp') {
+                if (!mario.jumping) {
+                    mario.velocityY = -15;
+                    mario.jumping = true;
+                }
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+        
+        setInterval(() => {
+            if (keys['ArrowLeft'] || keys['a']) {
+                mario.velocityX = -5;
+            } else if (keys['ArrowRight'] || keys['d']) {
+                mario.velocityX = 5;
+            } else {
+                mario.velocityX *= 0.8;
+            }
+        }, 16);
+        
+        // Mobile controls
+        function moveLeft() {
+            mario.velocityX = -5;
+        }
+        
+        function moveRight() {
+            mario.velocityX = 5;
+        }
+        
+        function stopMove() {
+            mario.velocityX *= 0.8;
+        }
+        
+        function jump() {
+            if (!mario.jumping) {
+                mario.velocityY = -15;
+                mario.jumping = true;
+            }
+        }
+        
+        function stopJump() {
+            // Nothing needed here
+        }
+        
+        // Initialize
+        updateUI();
+    </script>
+</body>
+</html>
